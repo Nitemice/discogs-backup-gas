@@ -37,6 +37,28 @@ function getData(url, getAllPages = false)
     return data;
 }
 
+function addToCsvOutput(output, input, leadingComma = true)
+{
+    if (leadingComma)
+    {
+        output += ',';
+    }
+
+    // Replace any quotes with 2 quotes
+    input = String(input).replaceAll('"', '""');
+
+    // Wrap in quotes if there's a comma or a linebreak
+    if (input.match(/[,\n]/)) 
+    {
+        output += '"' + input + '"';
+    }
+    else
+    {
+        output += input;
+    }
+    return output;
+}
+
 ////////////////////////////////////////////////////
 
 function retrieveProfile()
@@ -72,10 +94,7 @@ function retrieveCollection()
     }
 
     // Bail out if we only want raw JSON
-    if (config.outputFormat.every(element =>
-    {
-        element = "rawJson"
-    }))
+    if (config.outputFormat.every(element => { element = "rawJson" }))
     {
         return;
     }
@@ -141,13 +160,13 @@ function retrieveCollection()
 
         // Write header line
         var csvOutput =
-            "CatalogNo,Artist,Title,Label,Format,Rating,Released,ReleaseId,"
-        "CollectionFolder,DateAdded";
+            "CatalogNo,Artist,Title,Label,Format,Rating,Released,ReleaseId," +
+            "CollectionFolder,DateAdded";
 
         // Add any note field names to header line
         fieldsMap.forEach(fieldName =>
         {
-            csvOutput += "," + fieldName;
+            csvOutput = addToCsvOutput(csvOutput, fieldName);
         });
 
         csvOutput += "\n";
@@ -156,45 +175,46 @@ function retrieveCollection()
         data.forEach(release =>
         {
             // Catalog#
-            csvOutput += "\"";
-            csvOutput += common.collateValues("catno", release.basic_information.labels).join(", ");
-            csvOutput += "\",\"";
+            const catNo = common.collateValues("catno",
+                release.basic_information.labels).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, catNo, false);
 
             // Artist
-            csvOutput += common.collateValues("name", release.basic_information.artists).join(", ");
-            csvOutput += "\",\"";
+            const artists = common.collateValues("name",
+                release.basic_information.artists).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, artists);
 
             // Title
-            csvOutput += release.basic_information.title;
-            csvOutput += "\",\"";
+            csvOutput = addToCsvOutput(csvOutput,
+                release.basic_information.title);
 
             // Label
-            csvOutput += common.collateValues("name", release.basic_information.labels).join(", ");
-            csvOutput += "\",\"";
+            const labels = common.collateValues("name",
+                release.basic_information.labels).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, labels);
 
             // Format
-            const formatDesc = release.basic_information.formats[0].descriptions || [];
-            csvOutput += [release.basic_information.formats[0].name, ...formatDesc].join(", ");
-            csvOutput += "\",\"";
+            const formatDesc = release.basic_information.formats[0].descriptions
+                || [];
+            const formats = [release.basic_information.formats[0].name,
+            ...formatDesc].join(", ");
+            csvOutput = addToCsvOutput(csvOutput, formats);
 
             // Rating
-            csvOutput += release.rating;
-            csvOutput += "\",\"";
+            csvOutput = addToCsvOutput(csvOutput, release.rating);
 
             // Released
-            csvOutput += release.basic_information.year;
-            csvOutput += "\",\"";
+            csvOutput = addToCsvOutput(csvOutput, release.basic_information.year);
 
-            // release_id
-            csvOutput += release.id;
-            csvOutput += "\",\"";
+            // ReleaseId
+            csvOutput = addToCsvOutput(csvOutput, release.id);
 
             // CollectionFolder
-            csvOutput += folderMap.get(release.folder_id);
-            csvOutput += "\",\"";
+            const folder = folderMap.get(release.folder_id);
+            csvOutput = addToCsvOutput(csvOutput, folder);
 
-            // Date Added
-            csvOutput += release.date_added;
+            // DateAdded
+            csvOutput = addToCsvOutput(csvOutput, release.date_added);
 
             // Flip data into map, so we can find folder names by id
             var noteMap = new Map();
@@ -205,10 +225,17 @@ function retrieveCollection()
 
             fieldsMap.forEach(function(fieldName, fieldId)
             {
-                csvOutput += "\",\"" + noteMap.get(fieldId);
+                if (noteMap.has(fieldId))
+                {
+                    csvOutput = addToCsvOutput(csvOutput, noteMap.get(fieldId))
+                }
+                else
+                {
+                    csvOutput += ",";
+                }
             });
 
-            csvOutput += "\"\n";
+            csvOutput += "\n";
         });
 
         // Save to backup folder
