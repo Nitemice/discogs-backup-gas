@@ -114,25 +114,45 @@ function retrieveCollection()
         folderMap.set(folder.id, folder.name);
     });
 
+    // Retrieve note fields for later use
+    // Set request URL
+    url = `${apiUrl}/users/${config.username}/collection/fields`;
+
+    // Request the data, and extract the values
+    var fieldsData = getData(url);
+    fieldsData = JSON.parse(fieldsData);
+
+    // Flip data into map, so we can find fields names by id
+    var fieldsMap = new Map();
+    fieldsData.fields.forEach(field =>
+    {
+        fieldsMap.set(field.id, field.name);
+    });
+
     if (config.outputFormat.includes("json"))
     {
         // Parse release data into a more useful format
         var filteredData = data.map(function(release)
         {
+            let notes = (release.notes || []).map((note) =>
+            {
+                return {
+                    "field": fieldsMap.get(note.field_id),
+                    "value": note.value
+                }
+            });
+
             return {
-                release_id: release.release_id,
-                collection_id: release.collection_id,
+                release_id: release.id,
                 title: release.basic_information.title,
-                artists: release.basic_information.artists_sort,
+                artists: release.basic_information.artists,
                 year: release.basic_information.year,
                 labels: release.basic_information.labels,
-                identifiers: release.basic_information.identifiers,
-                release_date: release.basic_information.released_formatted,
-                // format: release.basic_information.formats[0].descriptions[0],
-                notes: release.basic_information.notes,
-                date_added: release.date_added,
+                format: release.basic_information.formats,
+                notes: notes,
                 rating: release.rating,
                 folder: folderMap.get(release.folder_id),
+                date_added: release.date_added,
             };
         });
 
@@ -143,20 +163,7 @@ function retrieveCollection()
 
     if (config.outputFormat.includes("csv"))
     {
-        // Retrieve note fields for later use
-        // Set request URL
-        url = `${apiUrl}/users/${config.username}/collection/fields`;
 
-        // Request the data, and extract the values
-        var fieldsData = getData(url);
-        fieldsData = JSON.parse(fieldsData);
-
-        // Flip data into map, so we can find fields names by id
-        var fieldsMap = new Map();
-        fieldsData.fields.forEach(field =>
-        {
-            fieldsMap.set(field.id, field.name);
-        });
 
         // Write header line
         var csvOutput =
@@ -243,6 +250,217 @@ function retrieveCollection()
     }
 }
 
+function retrieveWantlist()
+{
+    // Set request URL
+    var url = `${apiUrl}/users/${config.username}/wants`;
+
+    // Request the data, and extract the values
+    var data = getData(url, true);
+
+    // Fold array of responses into single structure
+    data = common.collateArrays("wants", data);
+
+    // Save raw data to backup folder
+    if (config.outputFormat.includes("rawJson"))
+    {
+        var rawData = JSON.stringify(data, null, 4);
+        common.updateOrCreateFile(config.backupDir, "wantlist.raw.json", rawData);
+    }
+
+    // Bail out if we only want raw JSON
+    if (config.outputFormat.every(element => { element = "rawJson" }))
+    {
+        return;
+    }
+
+    if (config.outputFormat.includes("json"))
+    {
+        // Parse release data into a more useful format
+        var filteredData = data.map(function(release)
+        {
+            return {
+                release_id: release.id,
+                title: release.basic_information.title,
+                artists: release.basic_information.artists,
+                year: release.basic_information.year,
+                labels: release.basic_information.labels,
+                format: release.basic_information.formats,
+                rating: release.rating,
+                notes: release.notes,
+                date_added: release.date_added,
+            };
+        });
+
+        // Save to backup folder
+        var prettyData = JSON.stringify(filteredData, null, 4);
+        common.updateOrCreateFile(config.backupDir, "wantlist.json", prettyData);
+    }
+
+    if (config.outputFormat.includes("csv"))
+    {
+
+        // Write header line
+        var csvOutput =
+            "CatalogNo,Artist,Title,Label,Format,Rating,Released,ReleaseId,Notes";
+        csvOutput += "\n";
+
+        // Parse data into CSV format
+        data.forEach(release =>
+        {
+            // Catalog#
+            const catNo = common.collateValues("catno",
+                release.basic_information.labels).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, catNo, false);
+
+            // Artist
+            const artists = common.collateValues("name",
+                release.basic_information.artists).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, artists);
+
+            // Title
+            csvOutput = addToCsvOutput(csvOutput,
+                release.basic_information.title);
+
+            // Label
+            const labels = common.collateValues("name",
+                release.basic_information.labels).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, labels);
+
+            // Format
+            const formatDesc = release.basic_information.formats[0].descriptions
+                || [];
+            const formats = [release.basic_information.formats[0].name,
+            ...formatDesc].join(", ");
+            csvOutput = addToCsvOutput(csvOutput, formats);
+
+            // Rating
+            csvOutput = addToCsvOutput(csvOutput, release.rating);
+
+            // Released
+            csvOutput = addToCsvOutput(csvOutput, release.basic_information.year);
+
+            // ReleaseId
+            csvOutput = addToCsvOutput(csvOutput, release.id);
+
+            // Notes
+            csvOutput = addToCsvOutput(csvOutput, release.notes);
+
+            csvOutput += "\n";
+        });
+
+        // Save to backup folder
+        common.updateOrCreateFile(config.backupDir, "wantlist.csv", csvOutput);
+    }
+}
+
+
+function retrieveContributions()
+{
+    // Set request URL
+    var url = `${apiUrl}/users/${config.username}/contributions`;
+
+    // Request the data, and extract the values
+    var data = getData(url, true);
+
+    // Fold array of responses into single structure
+    data = common.collateArrays("contributions", data);
+
+    // Save raw data to backup folder
+    if (config.outputFormat.includes("rawJson"))
+    {
+        var rawData = JSON.stringify(data, null, 4);
+        common.updateOrCreateFile(config.backupDir, "contributions.raw.json", rawData);
+    }
+
+    // Bail out if we only want raw JSON
+    if (config.outputFormat.every(element => { element = "rawJson" }))
+    {
+        return;
+    }
+
+    if (config.outputFormat.includes("json"))
+    {
+        // Parse release data into a more useful format
+        var filteredData = data.map(function(release)
+        {
+            return {
+                release_id: release.id,
+                uri: release.uri,
+                title: release.title,
+                artists: release.artists,
+                year: release.year,
+                labels: release.labels,
+                identifiers: release.identifiers,
+                companies: release.companies,
+                format: release.formats,
+                rating: release.rating,
+                notes: release.notes,
+                date_added: release.date_added,
+                date_changed: release.date_changed,
+                status: release.status,
+            };
+        });
+
+        // Save to backup folder
+        var prettyData = JSON.stringify(filteredData, null, 4);
+        common.updateOrCreateFile(config.backupDir, "contributions.json", prettyData);
+    }
+
+    if (config.outputFormat.includes("csv"))
+    {
+
+        // Write header line
+        var csvOutput =
+            "CatalogNo,Artist,Title,Label,Format,Rating,Released,ReleaseId";
+        csvOutput += "\n";
+
+        // Parse data into CSV format
+        data.forEach(release =>
+        {
+            // Catalog#
+            const catNo = common.collateValues("catno",
+                release.labels).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, catNo, false);
+
+            // Artist
+            const artists = common.collateValues("name",
+                release.artists).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, artists);
+
+            // Title
+            csvOutput = addToCsvOutput(csvOutput,
+                release.title);
+
+            // Label
+            const labels = common.collateValues("name",
+                release.labels).join(", ");
+            csvOutput = addToCsvOutput(csvOutput, labels);
+
+            // Format
+            const formatDesc = release.formats[0].descriptions
+                || [];
+            const formats = [release.formats[0].name,
+            ...formatDesc].join(", ");
+            csvOutput = addToCsvOutput(csvOutput, formats);
+
+            // Rating
+            csvOutput = addToCsvOutput(csvOutput, release.rating);
+
+            // Released
+            csvOutput = addToCsvOutput(csvOutput, release.year);
+
+            // ReleaseId
+            csvOutput = addToCsvOutput(csvOutput, release.id);
+
+            csvOutput += "\n";
+        });
+
+        // Save to backup folder
+        common.updateOrCreateFile(config.backupDir, "contributions.csv", csvOutput);
+    }
+}
+
 function main()
 {
     // Don't do anything if there's no output formats
@@ -253,4 +471,6 @@ function main()
 
     retrieveProfile();
     retrieveCollection();
+    retrieveWantlist();
+    retrieveContributions();
 }

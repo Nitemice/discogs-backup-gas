@@ -3,8 +3,9 @@
 *Export Discogs user data, using Google Apps Script.*
 
 This script can be used to automatically export user data from Discogs.
-This includes user collections and folders. They are stored in a specified
-Google Drive directory, where they can be easily downloaded or shared.
+This includes user collection, wantlist and contributions. They are stored in
+a specified Google Drive directory, where they can be easily downloaded or
+shared.
 
 ## Usage
 
@@ -39,7 +40,7 @@ The basic structure can be seen below.
 const config = {
     "username": "<Discogs username>",
     "apiToken": "<Discogs API key>",
-    "outputFormat": ["rawJson", "json"],
+    "outputFormat": ["rawJson", "json", "csv"],
     "backupDir": "<Google Drive directory ID>"
 };
 ```
