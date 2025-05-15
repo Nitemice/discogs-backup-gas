@@ -68,11 +68,10 @@ function retrieveProfile()
 
     // Request the data, and extract the values
     var data = getData(url);
-    data = JSON.parse(data);
 
     // Save JSON data to backup folder
-    var profileData = JSON.stringify(data, null, 4);
-    common.updateOrCreateFile(config.backupDir, `${config.username}.json`, profileData);
+    common.updateOrCreateJsonFile(config.backupDir, `${config.username}.json`,
+        data);
 }
 
 function retrieveCollection()
@@ -89,8 +88,8 @@ function retrieveCollection()
     // Save raw data to backup folder
     if (config.outputFormat.includes("rawJson"))
     {
-        var rawData = JSON.stringify(data, null, 4);
-        common.updateOrCreateFile(config.backupDir, "collection.raw.json", rawData);
+        common.updateOrCreateJsonFile(config.backupDir, "collection.raw.json",
+            data);
     }
 
     // Bail out if we only want raw JSON
@@ -157,8 +156,8 @@ function retrieveCollection()
         });
 
         // Save to backup folder
-        var prettyData = JSON.stringify(filteredData, null, 4);
-        common.updateOrCreateFile(config.backupDir, "collection.json", prettyData);
+        common.updateOrCreateJsonFile(config.backupDir, "collection.json",
+            filteredData);
     }
 
     if (config.outputFormat.includes("csv"))
@@ -264,8 +263,8 @@ function retrieveWantlist()
     // Save raw data to backup folder
     if (config.outputFormat.includes("rawJson"))
     {
-        var rawData = JSON.stringify(data, null, 4);
-        common.updateOrCreateFile(config.backupDir, "wantlist.raw.json", rawData);
+        common.updateOrCreateJsonFile(config.backupDir, "wantlist.raw.json",
+            data);
     }
 
     // Bail out if we only want raw JSON
@@ -293,8 +292,8 @@ function retrieveWantlist()
         });
 
         // Save to backup folder
-        var prettyData = JSON.stringify(filteredData, null, 4);
-        common.updateOrCreateFile(config.backupDir, "wantlist.json", prettyData);
+        common.updateOrCreateFile(config.backupDir, "wantlist.json",
+            filteredData);
     }
 
     if (config.outputFormat.includes("csv"))
@@ -328,8 +327,8 @@ function retrieveWantlist()
             csvOutput = addToCsvOutput(csvOutput, labels);
 
             // Format
-            const formatDesc = release.basic_information.formats[0].descriptions
-                || [];
+            const formatDesc =
+                release.basic_information.formats[0].descriptions || [];
             const formats = [release.basic_information.formats[0].name,
             ...formatDesc].join(", ");
             csvOutput = addToCsvOutput(csvOutput, formats);
@@ -338,7 +337,8 @@ function retrieveWantlist()
             csvOutput = addToCsvOutput(csvOutput, release.rating);
 
             // Released
-            csvOutput = addToCsvOutput(csvOutput, release.basic_information.year);
+            csvOutput = addToCsvOutput(csvOutput,
+                release.basic_information.year);
 
             // ReleaseId
             csvOutput = addToCsvOutput(csvOutput, release.id);
@@ -369,8 +369,8 @@ function retrieveContributions()
     // Save raw data to backup folder
     if (config.outputFormat.includes("rawJson"))
     {
-        var rawData = JSON.stringify(data, null, 4);
-        common.updateOrCreateFile(config.backupDir, "contributions.raw.json", rawData);
+        common.updateOrCreateJsonFile(config.backupDir,
+            "contributions.raw.json", data);
     }
 
     // Bail out if we only want raw JSON
@@ -403,8 +403,8 @@ function retrieveContributions()
         });
 
         // Save to backup folder
-        var prettyData = JSON.stringify(filteredData, null, 4);
-        common.updateOrCreateFile(config.backupDir, "contributions.json", prettyData);
+        common.updateOrCreateFile(config.backupDir, "contributions.json",
+            filteredData);
     }
 
     if (config.outputFormat.includes("csv"))
@@ -457,7 +457,8 @@ function retrieveContributions()
         });
 
         // Save to backup folder
-        common.updateOrCreateFile(config.backupDir, "contributions.csv", csvOutput);
+        common.updateOrCreateFile(config.backupDir, "contributions.csv",
+            csvOutput);
     }
 }
 
