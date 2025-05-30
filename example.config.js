@@ -3,5 +3,6 @@ const config = {
     "apiToken": "dblu2gqcegbfanq1zrup3eega9qxtxb6",
     "outputFormat": ["rawJson", "json", "csv"],
 
-    "backupDir": "xzshxhX8QjQnlNuF_KWzSytboL6EvtSLW"
+    "backupDir": "xzshxhX8QjQnlNuF_KWzSytboL6EvtSLW",
+    "removeMissingLists": false
 };

@@ -461,7 +461,7 @@ function retrieveContributions()
     }
 }
 
-function retrieveListItems(listId, backupDir)
+function retrieveListItems(listId, prevMetadata, backupDir)
 {
     // Set request URL
     var url = `${apiUrl}/lists/${listId}`;
@@ -474,6 +474,21 @@ function retrieveListItems(listId, backupDir)
     var filename = data.name + "_" + data.id;
     filename = filename.replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
 
+    // Set up metadata info
+    var metadata = {
+        "id": listId,
+        "filename": filename,
+        "lastChanged": data.date_changed
+    }
+
+    // Check if this list has been updated since last backup
+    if (prevMetadata &&
+        prevMetadata.lastChanged == metadata.date_changed)
+    {
+        return metadata;
+    }
+
+
     // Save raw data to backup folder
     if (config.outputFormat.includes("rawJson"))
     {
@@ -483,7 +498,7 @@ function retrieveListItems(listId, backupDir)
     // Bail out if we only want raw JSON
     if (config.outputFormat.every(element => { element = "rawJson" }))
     {
-        return;
+        return metadata;
     }
 
     if (config.outputFormat.includes("json"))
@@ -544,6 +559,7 @@ function retrieveListItems(listId, backupDir)
         common.updateOrCreateFile(backupDir, filename + ".csv", csvOutput);
     }
 
+    return metadata;
 }
 
 function retrieveLists()
@@ -565,10 +581,40 @@ function retrieveLists()
     // Make a folder for list files
     var backupFolder = common.findOrCreateFolder(config.backupDir, "lists").getId();
 
+    // Retrieve a meta list of lists for service purposes
+    var metaListFile =
+        common.findOrCreateFile(backupFolder, "meta.list.json", "{}");
+    let metaList = common.getJsonFileContent(metaListFile);
+    let killList = { ...metaList };
+
     data.forEach(element =>
     {
-        retrieveListItems(element.id, backupFolder);
+        metaList[element.id] =
+            retrieveListItems(element.id, metaList[element.id], backupFolder);
+
+        delete killList[element.id];
+
+        // Write the meta list, so we don't lose anything
+        metaListFile.setContent(JSON.stringify(metaList));
     });
+
+    // Delete lists that no longer exist,
+    // i.e. on the meta list, but not returned by the API
+    if (config.removeMissingLists && Object.keys(killList).length > 0)
+    {
+        for (const [id, info] of Object.entries(killList))
+        {
+            common.deleteFile(backupFolder, info.filename + ".raw.json");
+            common.deleteFile(backupFolder, info.filename + ".json");
+            common.deleteFile(backupFolder, info.filename + ".csv");
+
+            // Remove the now-deleted file from the meta list
+            delete metaList[id];
+
+            // Write the meta list, so we don't lose anything
+            metaListFile.setContent(JSON.stringify(metaList));
+        }
+    }
 
 }
 
