@@ -245,7 +245,8 @@ function retrieveCollection()
         });
 
         // Save to backup folder
-        common.updateOrCreateFile(config.backupDir, "collection.csv", csvOutput);
+        common.updateOrCreateFile(config.backupDir, "collection.csv",
+            csvOutput);
     }
 }
 
@@ -292,7 +293,7 @@ function retrieveWantlist()
         });
 
         // Save to backup folder
-        common.updateOrCreateFile(config.backupDir, "wantlist.json",
+        common.updateOrCreateJsonFile(config.backupDir, "wantlist.json",
             filteredData);
     }
 
@@ -403,7 +404,7 @@ function retrieveContributions()
         });
 
         // Save to backup folder
-        common.updateOrCreateFile(config.backupDir, "contributions.json",
+        common.updateOrCreateJsonFile(config.backupDir, "contributions.json",
             filteredData);
     }
 
@@ -429,8 +430,7 @@ function retrieveContributions()
             csvOutput = addToCsvOutput(csvOutput, artists);
 
             // Title
-            csvOutput = addToCsvOutput(csvOutput,
-                release.title);
+            csvOutput = addToCsvOutput(csvOutput, release.title);
 
             // Label
             const labels = common.collateValues("name",
@@ -440,8 +440,7 @@ function retrieveContributions()
             // Format
             const formatDesc = release.formats[0].descriptions
                 || [];
-            const formats = [release.formats[0].name,
-            ...formatDesc].join(", ");
+            const formats = [release.formats[0].name, ...formatDesc].join(", ");
             csvOutput = addToCsvOutput(csvOutput, formats);
 
             // Rating
@@ -462,6 +461,117 @@ function retrieveContributions()
     }
 }
 
+function retrieveListItems(listId, backupDir)
+{
+    // Set request URL
+    var url = `${apiUrl}/lists/${listId}`;
+
+    // Request the data, and extract the values
+    var data = getData(url, false);
+    data = JSON.parse(data);
+
+    // Setup list filename
+    var filename = data.name + "_" + data.id;
+    filename = filename.replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+
+    // Save raw data to backup folder
+    if (config.outputFormat.includes("rawJson"))
+    {
+        common.updateOrCreateJsonFile(backupDir, filename + ".raw.json", data);
+    }
+
+    // Bail out if we only want raw JSON
+    if (config.outputFormat.every(element => { element = "rawJson" }))
+    {
+        return;
+    }
+
+    if (config.outputFormat.includes("json"))
+    {
+        // Parse release data into a more useful format
+        var filteredData = {
+            list_id: data.id,
+            name: data.name,
+            description: data.description,
+            date_added: data.date_added,
+            date_changed: data.date_changed,
+            username: data.user.username,
+            user_id: data.user.id,
+            public: data.public,
+            items: data.items.map(function(item)
+            {
+                delete item.resource_url;
+                delete item.image_url;
+                delete item.stats;
+                return item;
+            })
+        };
+
+        // Save to backup folder
+        common.updateOrCreateJsonFile(backupDir, filename + ".json",
+            filteredData);
+    }
+
+    if (config.outputFormat.includes("csv"))
+    {
+
+        // Write header line
+        var csvOutput = "Type,Id,Title,Uri,Comment";
+        csvOutput += "\n";
+
+        // Parse data into CSV format
+        data.items.forEach(item =>
+        {
+            // Type
+            csvOutput = addToCsvOutput(csvOutput, item.type, false);
+
+            // Id
+            csvOutput = addToCsvOutput(csvOutput, item.id);
+
+            // Title
+            csvOutput = addToCsvOutput(csvOutput, item.display_title);
+
+            // Uri
+            csvOutput = addToCsvOutput(csvOutput, item.uri);
+
+            // Comment
+            csvOutput = addToCsvOutput(csvOutput, item.comment);
+
+            csvOutput += "\n";
+        });
+
+        // Save to backup folder
+        common.updateOrCreateFile(backupDir, filename + ".csv", csvOutput);
+    }
+
+}
+
+function retrieveLists()
+{
+    // Set request URL
+    var url = `${apiUrl}/users/${config.username}/lists`;
+
+    // Request the data, and extract the values
+    var data = getData(url, true);
+
+    // Fold array of responses into single structure
+    data = common.collateArrays("lists", data);
+
+    if (data.length < 1)
+    {
+        return;
+    }
+
+    // Make a folder for list files
+    var backupFolder = common.findOrCreateFolder(config.backupDir, "lists").getId();
+
+    data.forEach(element =>
+    {
+        retrieveListItems(element.id, backupFolder);
+    });
+
+}
+
 function main()
 {
     // Don't do anything if there's no output formats
@@ -474,4 +584,5 @@ function main()
     retrieveCollection();
     retrieveWantlist();
     retrieveContributions();
+    retrieveLists();
 }
